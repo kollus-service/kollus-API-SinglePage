@@ -1,0 +1,153 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Kollus CMS 파일 업로드</title>
+    <script src="https://code.jquery.com/jquery-1.9.1.min.js"></script>
+    <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.2/css/bootstrap.min.css">
+    <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.2/css/bootstrap-theme.min.css">
+    <script src="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.2/js/bootstrap.min.js"></script>
+    <script type="text/javascript">
+        var progressTimer;
+        var tr_progressTimer;
+        var access_token;
+        var upload_filekey;
+
+        function uploadFile() {
+            access_token = $('#access_token').val();
+            if(access_token == ''){
+                alert('api 접근 토큰을 입력해주세요.');
+                return;
+            }
+
+            if($("#tb_file").val() == "" ){
+                alert("파일을 선택해 주세요.");
+                return;
+            }
+
+            var data = {};
+            //data.page = page;
+            // data.upload_file_key = uploadkey;
+            data.expire_time = '600';
+            data.title = $('#nm').val();
+            data.is_encryption_upload = 0; //암호화 업로드 여부
+            data.is_audio_upload = 0; //오디오 업로드 여부
+            data.category_key = $('#category_key').val(); //카테고리 키
+            $.ajax({
+                url: 'https://api.kr.kollus.com/0/media_auth/upload/create_url?access_token='+access_token,
+                type: 'post',
+                dataType: 'JSON',
+                data: data,
+                cache : false,
+                contentType: "application/x-www-form-urlencoded;charset=utf-8",
+                processData : false,
+                success: function (res) {
+                    upload_filekey = res.result.upload_file_key;
+                    var form = $('#form_upload')[0];
+                    var formData = new FormData(form);
+                    formData.append("upload-file", $("#tb_file")[0].files[0]);
+                    formData.append("accept", 'application/json');
+                    $.ajax({
+                        url: res.result.upload_url,
+                        processData: false,
+                        contentType: false,
+                        data: formData,
+                        type: 'POST',
+                        success: function(retval){
+                            console.log(retval);
+                        }
+                    });
+                    //console.log(res.result.progress_url);
+                    progressTimer = setInterval(function() {
+                        checkProgress(res.result.progress_url);
+                    }, 500);
+                }
+            });
+        }
+
+        var checkProgress = function(_url) {
+            $.ajax({
+                url : _url,
+                type : 'get',
+                accept : 'application/json;charset=utf-8',
+                success : function(res) {
+                    var prog = res.result.progress;
+                    console.log(res);
+                    $('#prog_upload').html(prog + '%');
+                    $('#prog_upload').attr('aria-valuenow', prog);
+                    $('#prog_upload').css('width', prog + '%');
+                    if (parseInt(prog) == 100) {
+                        clearInterval(progressTimer);
+                        checkTranscoding();
+                    }
+                }
+            })
+        }
+
+        var checkTranscoding = function(){
+            var tm = 0;
+            var tr_stage_code = {
+                0 : 'Kollus 시스템 등록 대기중',
+                1 : '트랜스코딩 대기중',
+                11 : '트랜스코딩 작업 대기중',
+                12 : '트랜스코딩 작업중',
+                21 : '트랜스코딩 완료 (성공)',
+                51 : '트랜스코딩 에러 (작업 진행 실패)',
+                52 : '트랜스코딩 에러 (트랜스코딩 실패)'
+            };
+            tr_progressTimer = setInterval(function() {
+                $.ajax({
+                    url : 'https://api.kr.kollus.com/0/media/upload_file/index?access_token='+access_token+'&upload_file_key='+upload_filekey,
+                    type : 'get',
+                    accept : 'application/json;charset=utf-8',
+                    success : function(res) {
+                        tm = tm+5;
+                        // console.log(res);
+                        if(res.result.count > 0){
+                            var prog = res.result.items.item[0].transcoding_progress;
+                            var tr_stage = res.result.items.item[0].transcoding_stage;
+                            // console.log(res);
+                            //  $('#prog_upload').html(prog + '% '+tr_stage_code[tr_stage]);
+                            $('#prog_upload').html(tr_stage_code[tr_stage] + '... ( '+ tm + 'sec )');
+                            /*  $('#prog_upload').attr('aria-valuenow', prog);
+                              $('#prog_upload').css('width', prog + '%');*/
+                            if (parseInt(tr_stage) == 21) {
+                                clearInterval(tr_progressTimer);
+                            }
+                        }else{
+                            $('#prog_upload').html('파일 확인중... ( '+ tm + 'sec )');
+                        }
+                    }
+                })
+            }, 5000);
+
+        }
+    </script>
+</head>
+<body>
+<div style="width: 800px; margin-left: 20px;">
+    <div class="page-header">
+        <h3>Kollus CMS API_파일 업로드 Sample Code</h3>
+    </div>
+    <div class="input-group">
+        <span class="input-group-addon" >API 접근 토큰</span> <input type="text" class="form-control" id="access_token" value="">
+        <span class="input-group-addon" >카테고리 키</span> <input type="text" class="form-control" id="category_key" value="">
+    </div>
+    <div class="input-group">
+        <span class="input-group-addon" >파일명 </span> <input type="text" class="form-control" id="nm" value="">
+    </div>
+    <form id="form_upload" class="form" action="" enctype="multipart/form-data" method="post">
+        <div class="input-group">
+            <span class="input-group-addon">upload_file</span> <input type="file" name="upload-file" class="form-control" id="tb_file" />
+        </div>
+        <div class="btn-group">
+            <button type="button" onclick="uploadFile();" id="btnUpload" class="btn btn-primary">파일 올리기</button>
+            <button type="button" id="btnUploadCancel" class="btn btn-default">Cancel</button>
+        </div>
+    </form>
+    <div class="progress">
+        <div id="prog_upload" class="progress-bar" role="progressbar" aria-valuenow="0" aria-valuemin="0" aria-valuemax="100" >0%</div>
+    </div>
+</div>
+</body>
+</html>
