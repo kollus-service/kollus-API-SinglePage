@@ -1,0 +1,67 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Kollus CMS 자막 업로드</title>
+    <script src="https://code.jquery.com/jquery-1.9.1.min.js"></script>
+    <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.2/css/bootstrap.min.css">
+    <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.2/css/bootstrap-theme.min.css">
+    <script src="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.2/js/bootstrap.min.js"></script>
+    <script type="text/javascript">
+        var access_token;
+        var upload_file_key;
+
+        function uploadFile() {
+            upload_file_key = $('#upload_file_key').val();
+            access_token = $('#access_token').val();
+            if(upload_file_key == ''){
+                alert('업로드 파일키를 입력해주세요.');
+                return;
+            }
+            if(access_token == ''){
+                alert('API 접근 토큰을 입력해주세요.');
+                return;
+            }
+            if($("#tb_file").val() == "" ){
+                alert("파일을 선택해 주세요.");
+                return;
+            }
+            var _url = 'https://vod-kr.kollus.com/api/v0/vod/media-contents/'+upload_file_key+'/subtitles/upload?access_token='+access_token;
+
+            $("#form_upload").attr("action", _url);
+            $("#form_upload").attr("accept", 'application/x-www-form-urlencoded;charset=utf-8');
+
+            $("form").submit();
+
+        }
+    </script>
+</head>
+<body>
+<div style="width: 800px; margin-left: 20px;">
+    <div class="page-header">
+        <h3>Kollus API_자막파일 업로드 Sample Code</h3>
+    </div>
+    <div class="input-group">
+        <span class="input-group-addon" >API 접근 토큰</span> <input type="text" class="form-control" id="access_token" value="">
+    </div>
+    <div class="input-group">
+        <span class="input-group-addon" >업로드 파일키</span> <input type="text" class="form-control" id="upload_file_key" value="">
+    </div>
+    <form id="form_upload" class="form" action="" enctype="multipart/form-data" method="post">
+        <div class="input-group">
+            <span class="input-group-addon">upload_file</span> <input type="file" name="upload_file" class="form-control" id="tb_file" />
+        </div>
+        <div class="input-group">
+            <span class="input-group-addon" >자막 파일명(확장자 제외)</span> <input type="text" class="form-control" name="name" id="nm" value="">
+        </div>
+        <div class="input-group">
+            <span class="input-group-addon" >Language Code(ISO 639-1 codes) ex) en, ko, ja</span><input type="text" class="form-control" name="language_code" id="lang_code" value="ko">
+        </div>
+        <div class="btn-group">
+            <button type="button" onclick="uploadFile();" id="btnUpload" class="btn btn-primary">파일 올리기</button>
+            <button type="button" id="btnUploadCancel" class="btn btn-default">Cancel</button>
+        </div>
+    </form>
+</div>
+</body>
+</html>
