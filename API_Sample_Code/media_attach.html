@@ -126,7 +126,7 @@
                             dataTr += "<td>"+'<input type="radio" name="checkOptions" value="'+itemArray[i].key+'">'+"</td>";
                             dataTr += "<td>"+itemArray[i].name+"</td>";
                             dataTr += "<td>"+itemArray[i].key+"</td>";
-                            dataTr += "<td>"+itemArray[i].count_of_media_contents+"</td>";
+                            dataTr += "<td><span class='badge'>"+itemArray[i].count_of_media_contents+"</span></td>";
                             dataTr += "</tr>";
                         }
                         $('#modalTable').html(dataTr);
@@ -137,7 +137,13 @@
             });
         }
         function setCodeData() {
-
+            var radioVal = $('input[name="checkOptions"]:checked').val();
+            if(!radioVal){
+                alert('카테고리를 선택해주세요.');
+                return;
+            }
+            $('#category_key').val(radioVal);
+            $('#modalClose').click();
         }
 
         /** 파일업로드 API 관련 소스 **/
@@ -271,6 +277,78 @@
                 }
             });
         }
+        function chMapping() {
+            if($('#access_token').val() == ''){
+                $('#mappingChannel').attr('data-target', "");
+                alert('api 접근 토큰을 입력해주세요.');
+                return;
+            }
+            $('#mappingChannel').attr('data-target', "#ch_modal");
+            access_token = $('#access_token').val();
+
+            $.ajax({
+                url:'http://api.kr.kollus.com/0/media/category/index?access_token='+access_token+'&order=created_at_desc',
+                type: 'GET',
+                dataType: 'JSON',
+                //async: false,
+                contentType: "application/json",
+                success: function (res) {
+                    if(res.error == 0){
+                        var itemArray = res.result.items.item;
+                        var dataTr =  "";
+                        for(var i = 0; i<itemArray.length; i++){
+                            dataTr += "<li class='list-group-item'>";
+                            dataTr += "<span class='badge'>"+itemArray[i].count_of_media_contents+"개</span>";
+                            dataTr += "<a href='javascript:;'  onclick='getCateContents(\""+itemArray[i].key+"\")'>"+itemArray[i].name+"</a>";
+                            dataTr += "</li>";
+                        }
+                        $('#ch_cateList').html(dataTr);
+                    }else{
+                        alert(res.message);
+                    }
+                }
+            });
+
+        }
+        function getCateContents(cateKey) {
+            if(!cateKey){
+                alert('카테고리 키가 없습니다.');
+                return;
+            }
+            $('#cate_contents').html('');
+            $.ajax({
+                url:'http://api.kr.kollus.com/0/media/library/media_content?access_token='+access_token+'&category_key='+cateKey,
+                type: 'GET',
+                dataType: 'JSON',
+                //async: false,
+                contentType: "application/json",
+                success: function (res) {
+                    if(res.error == 0){
+                        if(res.result.count < 1){
+                            $('#cate_contents').html('');
+                            return;
+                        }
+                        var itemArray = res.result.items.item;
+                        var dataTr =  "<ul class='list-group'>";
+                        for(var i = 0; i<itemArray.length; i++){
+                            dataTr += "<li class='list-group-item'>";
+                            dataTr += '<div class="media-left">';
+                            dataTr += '<input type="checkbox" name="m_checkbox" value="'+itemArray[i].upload_file_key+'"></div>';
+                            dataTr += '<div class="media-left">';
+                            dataTr += '<img class="media-object" style="width: 60px; height: 40px;" src="'+itemArray[i].poster_url+'" ></div>';
+                            dataTr += '<div class="media-body">';
+                            var use_enc = (itemArray[i].use_encryption == 1) ? '<i class="glyphicon glyphicon-lock" style="color: #2d74f3;"></i>' :'';
+                            dataTr += '<h5 class="media-heading">'+use_enc+itemArray[i].title +'</h5></div>';
+                            dataTr += "</li>";
+                        }
+                        dataTr+="</ul>";
+                        $('#cate_contents').html(dataTr);
+                    }else{
+                        alert(res.message);
+                    }
+                }
+            });
+        }
     </script>
 </head>
 <body>
@@ -283,7 +361,7 @@
         <span class="input-group-addon" >API 접근 토큰</span> <input type="text" class="form-control" id="access_token" value="j4toxsy2xkhsrbv3">
     </div>
     <div class="input-group">
-        <h4>Step1</h4>
+        <h4>Step1 : 카테고리 생성</h4>
     </div>
     <div class="input-group">
         <span class="input-group-addon" >카테고리 명</span> <input type="text" class="form-control" id="cate_nm" value="">
@@ -294,7 +372,7 @@
         <button type="button" onclick="searchCate();" id="searchCate" class="btn btn-primary" data-toggle="modal">카테고리 찾기</button>
     </div>
     <div class="input-group">
-        <h4>Step2</h4>
+        <h4>Step2 : 미디어 파일 업로드</h4>
     </div>
     <div class="input-group">
         <span class="input-group-addon" >카테고리 키</span> <input type="text" class="form-control" id="category_key" placeholder="카테고리 생성 또는 찾기시 자동으로 입력됩니다."  value="">
@@ -324,7 +402,7 @@
         <div id="prog_upload" class="progress-bar" role="progressbar" aria-valuenow="0" aria-valuemin="0" aria-valuemax="100" >0%</div>
     </div>
     <div class="input-group">
-        <h4>Step3</h4>
+        <h4>Step3 : 채널 생성</h4>
     </div>
     <div class="input-group">
         <span class="input-group-addon" >채널명</span> <input type="text" class="form-control" id="cate_chnm" value="">
@@ -348,10 +426,11 @@
     </div>
     <div class="btn-group">
         <button type="button" onclick="checkValidate(3);" id="createChannel" class="btn btn-primary">채널 생성</button>
-        <button type="button" onclick="" id="mappingChannel" class="btn btn-primary">채널 맵핑</button>
+        <button type="button" onclick="chMapping();" id="mappingChannel" class="btn btn-primary" data-toggle="modal" >채널 맵핑</button>
     </div>
 
-    <!-- Modal -->
+
+    <!-- 카테고리 Modal -->
     <div class="modal fade" id="modal" tabindex="-1" role="dialog" aria-labelledby="modalLabel" aria-hidden="true">
         <div class="modal-dialog" role="document">
             <div class="modal-content">
@@ -365,7 +444,42 @@
                 </div>
                 <div class="modal-footer">
                     <button type="button" class="btn btn-primary" onclick="setCodeData();">적용</button>
-                    <button type="button" class="btn btn-secondary" data-dismiss="modal">닫기</button>
+                    <button type="button" class="btn btn-secondary" id="modalClose" data-dismiss="modal">닫기</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 채널 Modal -->
+    <div class="modal fade" id="ch_modal" tabindex="-1" role="dialog" aria-labelledby="modalLabel" aria-hidden="true">
+        <div class="modal-dialog modal-lg" role="document">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h3 class="modal-title" id="ch_modalLabel"></h3>
+                </div>
+                <div class="modal-body">
+                    <div class="row">
+                        <div class="col-md-4">
+                            <ul class="list-group" id="ch_cateList">
+
+                            </ul>
+                        </div>
+                        <div class="col-md-4" id="cate_contents">
+
+                        </div>
+                        <div class="col-md-4">
+                            <ul class="list-group">
+                                <li class="list-group-item">
+                                    <span class="badge">14</span>
+                                    Cras justo odio
+                                </li>
+                            </ul>
+                        </div>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-primary" onclick="setCodeData();">적용</button>
+                    <button type="button" class="btn btn-secondary" id="ch_modalClose" data-dismiss="modal">닫기</button>
                 </div>
             </div>
         </div>
