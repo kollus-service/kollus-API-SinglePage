@@ -299,7 +299,7 @@
                         for(var i = 0; i<itemArray.length; i++){
                             dataTr += "<li class='list-group-item'>";
                             dataTr += "<span class='badge'>"+itemArray[i].count_of_media_contents+"개</span>";
-                            dataTr += "<a href='javascript:;'  onclick='getCateContents(\""+itemArray[i].key+"\")'>"+itemArray[i].name+"</a>";
+                            dataTr += "<a href='javascript:;'  onclick='getCateContents(\""+itemArray[i].key+"\", 1)'>"+itemArray[i].name+"</a>";
                             dataTr += "</li>";
                         }
                         $('#ch_cateList').html(dataTr);
@@ -308,28 +308,54 @@
                     }
                 }
             });
-
-        }
-        function getCateContents(cateKey) {
-            if(!cateKey){
-                alert('카테고리 키가 없습니다.');
-                return;
-            }
-            $('#cate_contents').html('');
             $.ajax({
-                url:'http://api.kr.kollus.com/0/media/library/media_content?access_token='+access_token+'&category_key='+cateKey,
+                url:'http://api.kr.kollus.com/0/media/channel/index?access_token='+access_token,
                 type: 'GET',
                 dataType: 'JSON',
                 //async: false,
                 contentType: "application/json",
                 success: function (res) {
                     if(res.error == 0){
+                        var itemArray = res.result.items.item;
+                        var dataTr =  "";
+                        for(var i = 0; i<itemArray.length; i++){
+                            dataTr += "<li class='list-group-item'>";
+                            dataTr += "<span class='badge'>"+itemArray[i].count_of_media_contents+"개</span>";
+                            dataTr += '<input type="radio" name="checkCh" value="'+itemArray[i].key+'">'+itemArray[i].name;
+                            dataTr += "</li>";
+                        }
+                        $('#ch_list').html(dataTr);
+                    }else{
+                        alert(res.message);
+                    }
+                }
+            });
+        }
+        function getCateContents(cateKey, page) {
+            if(!cateKey){
+                alert('카테고리 키가 없습니다.');
+                return;
+            }
+            $('#cate_contents').html('');
+            $.ajax({
+                url:'http://api.kr.kollus.com/0/media/library/media_content?access_token='+access_token+'&category_key='+cateKey+'&page='+page,
+                type: 'GET',
+                dataType: 'JSON',
+                //async: false,
+                contentType: "application/json",
+                success: function (res) {
+                    if(res.error == 0){
+                        var pageCount = 0;
                         if(res.result.count < 1){
                             $('#cate_contents').html('');
                             return;
+                        }else{
+                            pageCount = res.result.count;
+                            pageCount = ((pageCount%10) > 0 ? (pageCount/10) + 1 :(pageCount/10));
+                            pageCount = parseInt(pageCount);
                         }
                         var itemArray = res.result.items.item;
-                        var dataTr =  "<ul class='list-group'>";
+                        var dataTr =  "";
                         for(var i = 0; i<itemArray.length; i++){
                             dataTr += "<li class='list-group-item'>";
                             dataTr += '<div class="media-left">';
@@ -341,13 +367,51 @@
                             dataTr += '<h5 class="media-heading">'+use_enc+itemArray[i].title +'</h5></div>';
                             dataTr += "</li>";
                         }
-                        dataTr+="</ul>";
+                        var pageTr = "";
+                        for(var i =0; i<pageCount; i++){
+                            pageTr += "<li><a href='javascript:;'  onclick='getCateContents(\""+cateKey+"\", "+(i+1)+")'>"+(i+1)+"</a></li>";
+                        }
+
                         $('#cate_contents').html(dataTr);
+                        $('#pageNum').html(pageTr);
                     }else{
                         alert(res.message);
                     }
                 }
             });
+        }
+
+        function chAttach() {
+            var channel_key = $('input[name="checkCh"]:checked').val();
+            if(!channel_key){
+                alert('채널을 선택해주세요.');
+                return;
+            }
+            var resTxt = "";
+            var data = {};
+            data.channel_key = channel_key;
+            $("input[name='m_checkbox']:checked").each(
+                function() {
+                    var upload_file_key = $(this).val();
+                    console.log(upload_file_key);
+                    $.ajax({
+                        url:'http://api.kr.kollus.com/0/media/channel/attach/upload_file_key='+upload_file_key+'?access_token='+access_token,
+                        type: 'post',
+                        dataType: 'JSON',
+                        data: data,
+                        cache : false,
+                        contentType: "application/x-www-form-urlencoded;charset=utf-8",
+                        processData : false,
+                        success: function (res) {
+                            if(res.error == 0){
+                                var itemArray = res.result.media_content_key;
+                                resTxt +=''
+                            }else{
+                                alert(res.message);
+                            }
+                        }
+                    });
+                });
         }
     </script>
 </head>
@@ -426,7 +490,7 @@
     </div>
     <div class="btn-group">
         <button type="button" onclick="checkValidate(3);" id="createChannel" class="btn btn-primary">채널 생성</button>
-        <button type="button" onclick="chMapping();" id="mappingChannel" class="btn btn-primary" data-toggle="modal" >채널 맵핑</button>
+        <button type="button" onclick="chMapping();" id="mappingChannel" class="btn btn-primary" data-toggle="modal" >채널 등록</button>
     </div>
 
 
@@ -460,25 +524,32 @@
                 <div class="modal-body">
                     <div class="row">
                         <div class="col-md-4">
+                            <h5>카테고리</h5>
                             <ul class="list-group" id="ch_cateList">
 
                             </ul>
                         </div>
-                        <div class="col-md-4" id="cate_contents">
+                        <div class="col-md-4" >
+                            <h5>미디어 리스트</h5>
+                            <ul class="list-group" id="cate_contents">
 
+                            </ul>
+                            <nav>
+                                <ul class="pagination" id="pageNum">
+
+                                </ul>
+                            </nav>
                         </div>
                         <div class="col-md-4">
-                            <ul class="list-group">
-                                <li class="list-group-item">
-                                    <span class="badge">14</span>
-                                    Cras justo odio
-                                </li>
+                            <h5>채널</h5>
+                            <ul class="list-group" id="ch_list">
+
                             </ul>
                         </div>
                     </div>
                 </div>
                 <div class="modal-footer">
-                    <button type="button" class="btn btn-primary" onclick="setCodeData();">적용</button>
+                    <button type="button" class="btn btn-primary" onclick="chAttach();">등록</button>
                     <button type="button" class="btn btn-secondary" id="ch_modalClose" data-dismiss="modal">닫기</button>
                 </div>
             </div>
