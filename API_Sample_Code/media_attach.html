@@ -157,15 +157,17 @@
             data.is_encryption_upload = is_encryption; //암호화 업로드 여부
             data.is_audio_upload = 0; //오디오 업로드 여부
             data.category_key = $('#category_key').val(); //카테고리 키
+            console.log(data);
             $.ajax({
                 url: 'https://api.kr.kollus.com/0/media_auth/upload/create_url?access_token='+access_token,
                 type: 'post',
-                dataType: 'JSON',
-                data: data,
+                //dataType: 'JSON',
+                data: $.param(data),
                 cache : false,
-                contentType: "application/x-www-form-urlencoded;charset=utf-8",
+                //contentType: "application/x-www-form-urlencoded;charset=utf-8",
                 processData : false,
                 success: function (res) {
+                    console.log(res)
                     upload_filekey = res.result.upload_file_key;
                     $('#upload_key').val(upload_filekey);
                     var form = $('#form_upload')[0];
@@ -308,6 +310,7 @@
                     }
                 }
             });
+
             $.ajax({
                 url:'http://api.kr.kollus.com/0/media/channel/index?access_token='+access_token,
                 type: 'GET',
